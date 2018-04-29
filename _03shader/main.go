@@ -6,7 +6,6 @@ import (
 	"log"
 	"runtime"
 	"strings"
-	"unsafe"
 
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
@@ -20,30 +19,14 @@ func init() {
 }
 
 func main() {
-	if err := glfw.Init(); nil != err {
-		log.Fatal("failed to inifitialize glfw:", err)
-	}
-
+	window := initGlfw()
 	defer glfw.Terminate()
 
-	glfw.WindowHint(glfw.Resizable, glfw.False)
-	glfw.WindowHint(glfw.ContextVersionMajor, 3)
-	glfw.WindowHint(glfw.ContextVersionMinor, 3)
-	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-
-	window, err := glfw.CreateWindow(windowWidth, windowWidth, "basic shaders", nil, nil)
-	if nil != err {
-		log.Panic(err)
-	}
-
-	window.MakeContextCurrent()
-
-	if err := gl.Init(); nil != err {
-		log.Panic(err)
-	}
+	initOpenGL()
 
 	window.SetKeyCallback(keyCallback)
+
+	shaderProgram := gl.CreateProgram()
 
 	// read shader from files
 	verticsShaderHandle, err := readShaderFromFile("./shaders/vertices.vert", gl.VERTEX_SHADER)
@@ -56,7 +39,6 @@ func main() {
 	}
 
 	// gen program
-	shaderProgram := gl.CreateProgram()
 	gl.AttachShader(shaderProgram, verticsShaderHandle)
 	gl.AttachShader(shaderProgram, fragmentShaderHandle)
 	gl.LinkProgram(shaderProgram)
@@ -73,28 +55,13 @@ func main() {
 		0.0, 0.0, 1.0, // color blue
 	}
 
-	indices := []float32{
+	indices := []uint32{
 		0, 1, 2,
 	}
 
-	// set vbo vao ebo
-	var VAO uint32
-	var VBO uint32
-	var EBO uint32
-
-	gl.GenVertexArrays(1, &VAO)
-	gl.GenBuffers(1, &VBO)
-	gl.GenBuffers(1, &EBO)
-
-	gl.BindVertexArray(VAO)
-
-	gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
-	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
-
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, EBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
-
-	// position
+	VBO := makeVbo(vertices)
+	makeVao(VBO)
+	// pos
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(0))
 	gl.EnableVertexAttribArray(0)
 
@@ -102,19 +69,97 @@ func main() {
 	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(3*4))
 	gl.EnableVertexAttribArray(1)
 
-	for !window.ShouldClose() {
+	makeEbo(indices)
 
-		gl.ClearColor(0.2, 0.5, 0.5, 1.0)
-		gl.Clear(gl.COLOR_BUFFER_BIT)
+	/*var VBO uint32
+	gl.GenBuffers(1, &VBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
+	gl.BufferData(gl.ARRAY_BUFFER, 4*len(vertices), gl.Ptr(vertices), gl.STATIC_DRAW)
+
+	var VAO uint32
+	gl.GenVertexArrays(1, &VAO)
+	gl.BindVertexArray(VAO)
+
+	// pos
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(0))
+	gl.EnableVertexAttribArray(0)
+
+	// color
+	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(3*4))
+	gl.EnableVertexAttribArray(1)
+
+	var EBO uint32
+	gl.GenBuffers(1, &EBO)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, EBO)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, 4*len(indices), gl.Ptr(indices), gl.STATIC_DRAW)
+	*/
+
+	for !window.ShouldClose() {
+		gl.ClearColor(0.5, 0.5, 1, 1.0)
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		gl.UseProgram(shaderProgram)
-		gl.BindVertexArray(VAO)
-		gl.DrawElements(gl.TRIANGLES, 3, gl.UNSIGNED_INT, unsafe.Pointer(nil))
+		gl.DrawElements(gl.TRIANGLES, 3, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
-		window.SwapBuffers()
 		glfw.PollEvents()
+		window.SwapBuffers()
 	}
 
+}
+
+func initGlfw() *glfw.Window {
+	// init glfw
+	if err := glfw.Init(); nil != err {
+		panic(err)
+	}
+
+	glfw.WindowHint(glfw.Resizable, glfw.True)
+	glfw.WindowHint(glfw.ContextVersionMajor, 3)
+	glfw.WindowHint(glfw.ContextVersionMinor, 3)
+	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
+	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
+
+	window, err := glfw.CreateWindow(800, 600, "Trinagle", nil, nil)
+	if nil != err {
+		panic(err)
+	}
+	window.MakeContextCurrent()
+
+	return window
+}
+
+func initOpenGL() {
+	// init gl and get a program
+	if err := gl.Init(); nil != err {
+		panic(err)
+	}
+	version := gl.GoStr(gl.GetString(gl.VERSION))
+	log.Println("Opengl version", version)
+}
+
+func makeVbo(vertices []float32) uint32 {
+	var vbo uint32
+	gl.GenBuffers(1, &vbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, 4*len(vertices), gl.Ptr(vertices), gl.STATIC_DRAW)
+
+	return vbo
+}
+
+func makeVao(vbo uint32) uint32 {
+	var vao uint32
+	gl.GenVertexArrays(1, &vao)
+	gl.BindVertexArray(vao)
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	return vao
+}
+
+func makeEbo(indices []uint32) uint32 {
+	var ebo uint32
+	gl.GenBuffers(1, &ebo)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, 4*len(indices), gl.Ptr(indices), gl.STATIC_DRAW)
+	return ebo
 }
 
 func readShaderFromFile(file string, sType uint32) (uint32, error) {
@@ -124,23 +169,24 @@ func readShaderFromFile(file string, sType uint32) (uint32, error) {
 		return 0, err
 	}
 
-	fmt.Printf("string(src) = %+v\n", string(src))
-	shader := gl.CreateShader(sType)
-	csources, free := gl.Strs(string(src) + "\x00")
+	return compileShader(string(src)+"\x00", sType)
+}
+
+func compileShader(source string, shaderType uint32) (uint32, error) {
+	shader := gl.CreateShader(shaderType)
+	csources, free := gl.Strs(source)
 	gl.ShaderSource(shader, 1, csources, nil)
 	free()
 	gl.CompileShader(shader)
 
-	// check error
-	var success int32
-	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &success)
-	if success == gl.FALSE {
-		var logLen int32
-		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLen)
-		log := gl.Str(strings.Repeat("\x00", int(logLen)))
-		gl.GetShaderInfoLog(shader, logLen, nil, log)
-
-		return 0, fmt.Errorf("%s: %s", "ReadShaderFromFile error", gl.GoStr(log))
+	var status int32
+	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
+	if gl.FALSE == status {
+		var logLength int32
+		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
+		log := strings.Repeat("\x00", int(logLength+1))
+		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(log))
+		return 0, fmt.Errorf("failed to compile %v : %v", source, log)
 	}
 
 	return shader, nil

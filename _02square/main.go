@@ -92,6 +92,7 @@ func makeVao(vbo uint32) uint32 {
 	gl.BindVertexArray(vao)
 	gl.EnableVertexAttribArray(0)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
 	return vao
 }
 
@@ -168,13 +169,8 @@ func main() {
 	}
 
 	vbo := makeVbo(vertices)
-	vao := makeVao(vbo)
-	ebo := makeEbo(indices)
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
-
-	defer gl.DeleteBuffers(1, &vbo)
-	defer gl.DeleteBuffers(1, &vao)
-	defer gl.DeleteBuffers(1, &ebo)
+	makeVao(vbo)
+	makeEbo(indices)
 
 	// gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 
