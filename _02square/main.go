@@ -181,8 +181,8 @@ func main() {
 	for !window.ShouldClose() {
 		gl.ClearColor(0.5, 0.5, 1, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		gl.UseProgram(prog1)
 
+		gl.UseProgram(prog1)
 		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
 		gl.UseProgram(prog2)
