@@ -10,7 +10,7 @@ import (
 	"github.com/go-gl/glfw/v3.2/glfw"
 )
 
-var vertexShaderSource = `
+var vertexShaderSource1 = `
 #version 330
 in vec3 vp;
 void main() {
@@ -18,11 +18,27 @@ void main() {
 }
 ` + "\x00"
 
-var fragmentShaderSource = `
+var vertexShaderSource2 = `
+#version 330
+in vec3 vp;
+void main() {
+	gl_Position = vec4(vp * 0.5, 1.0);
+}
+` + "\x00"
+
+var fragmentShaderSource1 = `
 #version 330
 out vec4 frag_colour;
 void main() {
-	frag_colour = vec4(1, 1, 1, 1);
+	frag_colour = vec4(0, 1, 0, 1);
+}
+` + "\x00"
+
+var fragmentShaderSource2 = `
+#version 330
+out vec4 frag_colour;
+void main() {
+	frag_colour = vec4(1, 0, 0, 1);
 }
 ` + "\x00"
 
@@ -36,7 +52,7 @@ func initGlfw() *glfw.Window {
 		panic(err)
 	}
 
-	glfw.WindowHint(glfw.Resizable, glfw.False)
+	glfw.WindowHint(glfw.Resizable, glfw.True)
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
@@ -51,17 +67,13 @@ func initGlfw() *glfw.Window {
 	return window
 }
 
-func initOpenGL() uint32 {
+func initOpenGL() {
 	// init gl and get a program
 	if err := gl.Init(); nil != err {
 		panic(err)
 	}
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	log.Println("Opengl version", version)
-	prog := gl.CreateProgram()
-
-	return prog
-
 }
 
 func makeVao(vertices []float32) uint32 {
@@ -74,7 +86,6 @@ func makeVao(vertices []float32) uint32 {
 	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
 	gl.EnableVertexAttribArray(0)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
 	return vao
 }
@@ -103,36 +114,73 @@ func main() {
 	window := initGlfw()
 	defer glfw.Terminate()
 
-	prog := initOpenGL()
+	initOpenGL()
+
+	prog1 := gl.CreateProgram()
+	prog2 := gl.CreateProgram()
 
 	// attach shader
-	vertexShader, err := compileShader(vertexShaderSource, gl.VERTEX_SHADER)
+	vertexShader1, err := compileShader(vertexShaderSource1, gl.VERTEX_SHADER)
 	if nil != err {
 		log.Panic(err)
 	}
-	fragmentShader, err := compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
+	vertexShader2, err := compileShader(vertexShaderSource2, gl.VERTEX_SHADER)
 	if nil != err {
 		log.Panic(err)
 	}
-	gl.AttachShader(prog, vertexShader)
-	gl.AttachShader(prog, fragmentShader)
-	gl.LinkProgram(prog)
+	fragmentShader1, err := compileShader(fragmentShaderSource1, gl.FRAGMENT_SHADER)
+	if nil != err {
+		log.Panic(err)
+	}
+	fragmentShader2, err := compileShader(fragmentShaderSource2, gl.FRAGMENT_SHADER)
+	if nil != err {
+		log.Panic(err)
+	}
+	gl.AttachShader(prog1, vertexShader1)
+	gl.AttachShader(prog2, vertexShader2)
+	gl.AttachShader(prog1, fragmentShader1)
+	gl.AttachShader(prog2, fragmentShader2)
+	gl.LinkProgram(prog1)
+	gl.LinkProgram(prog2)
 
+	/* two triangles
 	vertices := []float32{
 		-0.5, 0.5, 0,
 		0.5, 0.5, 0,
 		0, -0.5, 0,
+
+		0, -0.5, 0,
+		1, -1, 0,
+		-1, -1, 0,
+	}*/
+
+	vertices1 := []float32{
+		-1, 1, 0,
+		0, 1, 0,
+		-0.5, 0.5, 0,
 	}
 
-	vao := makeVao(vertices)
+	vertices2 := []float32{
+		0, 1, 0,
+		1, 1, 0,
+		0.5, 0.5, 0,
+	}
+
+	vao1 := makeVao(vertices1)
+	vao2 := makeVao(vertices2)
 
 	for !window.ShouldClose() {
 		gl.ClearColor(0.5, 0.5, 1, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		gl.UseProgram(prog)
 
-		gl.BindVertexArray(vao)
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(vertices)/3))
+		gl.UseProgram(prog1)
+
+		gl.BindVertexArray(vao1)
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(vertices1)/3))
+
+		gl.UseProgram(prog2)
+		gl.BindVertexArray(vao2)
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(vertices2)/3))
 
 		glfw.PollEvents()
 		window.SwapBuffers()
