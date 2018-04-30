@@ -97,7 +97,11 @@ func main() {
 		gl.ClearColor(0.5, 0.5, 1, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
+		offset := float32(0.5)
+		offsetLoc := gl.GetUniformLocation(shaderProgram, gl.Str("offset"+"\x00"))
+
 		gl.UseProgram(shaderProgram)
+		gl.Uniform1f(offsetLoc, offset)
 		gl.DrawElements(gl.TRIANGLES, 3, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
 		glfw.PollEvents()
