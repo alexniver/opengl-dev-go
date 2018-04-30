@@ -2,11 +2,17 @@ package main
 
 import (
 	"fmt"
+	"image"
+	"image/draw"
+	_ "image/jpeg"
+	_ "image/png"
 	"io/ioutil"
 	"log"
+	"os"
 	"runtime"
 	"strings"
 
+	"github.com/disintegration/imaging"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 )
@@ -45,62 +51,56 @@ func main() {
 
 	// vertices and indices
 	vertices := []float32{
-		// top         // color
-		0.0, 0.5, 0.0, 1.0, 0.0, 0.0,
+		-0.5, 0.5, 0.0, // pos
+		1.0, 0.0, 0.0, // color
+		0, 1, // uv
 
-		0.5, -0.5, 0.0, 0.0, 1.0, 0.0,
+		0.5, 0.5, 0.0,
+		0.0, 1.0, 0.0,
+		1, 1,
 
-		-0.5, -0.5, 0.0, 0.0, 0.0, 1.0,
+		0.5, -0.5, 0.0,
+		0.0, 0.0, 1.0,
+		1, 0,
+
+		-0.5, -0.5, 0.0,
+		0.5, 0.5, 0.0,
+		0, 0,
 	}
 
 	indices := []uint32{
-		0, 1, 2,
+		0, 1, 3,
+		1, 2, 3,
 	}
 
-	/*VBO := makeVbo(vertices)
+	VBO := makeVbo(vertices)
 	makeVao(VBO)
 	// pos
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(0))
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 8*4, gl.PtrOffset(0))
 	gl.EnableVertexAttribArray(0)
 
 	// color
-	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(3*4))
+	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 8*4, gl.PtrOffset(3*4))
 	gl.EnableVertexAttribArray(1)
 
-	makeEbo(indices)*/
+	// uv
+	gl.VertexAttribPointer(2, 2, gl.FLOAT, false, 8*4, gl.PtrOffset(6*4))
+	gl.EnableVertexAttribArray(2)
 
-	var VAO uint32
-	gl.GenVertexArrays(1, &VAO)
-	gl.BindVertexArray(VAO)
+	makeEbo(indices)
 
-	var VBO uint32
-	gl.GenBuffers(1, &VBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(vertices), gl.Ptr(vertices), gl.STATIC_DRAW)
-
-	// pos
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(0))
-	gl.EnableVertexAttribArray(0)
-
-	// color
-	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(3*4))
-	gl.EnableVertexAttribArray(1)
-
-	var EBO uint32
-	gl.GenBuffers(1, &EBO)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, EBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, 4*len(indices), gl.Ptr(indices), gl.STATIC_DRAW)
+	texture, err := newTexture("texture/funny.jpg")
+	if nil != err {
+		log.Fatal(err)
+	}
 
 	for !window.ShouldClose() {
 		gl.ClearColor(0.5, 0.5, 1, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		offset := float32(0.5)
-		offsetLoc := gl.GetUniformLocation(shaderProgram, gl.Str("offset"+"\x00"))
-
+		gl.BindTexture(gl.TEXTURE_2D, texture)
 		gl.UseProgram(shaderProgram)
-		gl.Uniform1f(offsetLoc, offset)
-		gl.DrawElements(gl.TRIANGLES, 3, gl.UNSIGNED_INT, gl.PtrOffset(0))
+		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
 		glfw.PollEvents()
 		window.SwapBuffers()
@@ -191,6 +191,47 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 	}
 
 	return shader, nil
+}
+
+func newTexture(filePath string) (uint32, error) {
+	imgFile, err := os.Open(filePath)
+	if nil != err {
+		return 0, fmt.Errorf("texture %q not found on disk: %v", filePath, err)
+	}
+
+	img, _, err := image.Decode(imgFile)
+	img = imaging.FlipV(img) // flip the image
+	if nil != err {
+		return 0, fmt.Errorf("texture %q decode error: %v", filePath, err)
+
+	}
+
+	rgba := image.NewRGBA(img.Bounds())
+	if rgba.Stride != rgba.Rect.Size().X*4 {
+		return 0, fmt.Errorf("unsupported stride")
+	}
+	draw.Draw(rgba, rgba.Bounds(), img, image.Point{0, 0}, draw.Src)
+
+	var texture uint32
+	gl.GenTextures(1, &texture)
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexImage2D(
+		gl.TEXTURE_2D,
+		0,
+		gl.RGBA,
+		int32(rgba.Rect.Size().X),
+		int32(rgba.Rect.Size().Y),
+		0,
+		gl.RGBA,
+		gl.UNSIGNED_BYTE,
+		gl.Ptr(rgba.Pix),
+	)
+	return texture, nil
 }
 
 func keyCallback(
