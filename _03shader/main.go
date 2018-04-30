@@ -59,7 +59,7 @@ func main() {
 		0, 1, 2,
 	}
 
-	VBO := makeVbo(vertices)
+	/*VBO := makeVbo(vertices)
 	makeVao(VBO)
 	// pos
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(0))
@@ -69,16 +69,16 @@ func main() {
 	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(3*4))
 	gl.EnableVertexAttribArray(1)
 
-	makeEbo(indices)
-
-	/*var VBO uint32
-	gl.GenBuffers(1, &VBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(vertices), gl.Ptr(vertices), gl.STATIC_DRAW)
+	makeEbo(indices)*/
 
 	var VAO uint32
 	gl.GenVertexArrays(1, &VAO)
 	gl.BindVertexArray(VAO)
+
+	var VBO uint32
+	gl.GenBuffers(1, &VBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
+	gl.BufferData(gl.ARRAY_BUFFER, 4*len(vertices), gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	// pos
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(0))
@@ -92,7 +92,6 @@ func main() {
 	gl.GenBuffers(1, &EBO)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, EBO)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, 4*len(indices), gl.Ptr(indices), gl.STATIC_DRAW)
-	*/
 
 	for !window.ShouldClose() {
 		gl.ClearColor(0.5, 0.5, 1, 1.0)
