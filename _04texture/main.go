@@ -53,15 +53,15 @@ func main() {
 	vertices := []float32{
 		-0.5, 0.5, 0.0, // pos
 		1.0, 0.0, 0.0, // color
-		0, 1, // uv
+		0, 2, // uv
 
 		0.5, 0.5, 0.0,
 		0.0, 1.0, 0.0,
-		1, 1,
+		2, 2,
 
 		0.5, -0.5, 0.0,
 		0.0, 0.0, 1.0,
-		1, 0,
+		2, 0,
 
 		-0.5, -0.5, 0.0,
 		0.5, 0.5, 0.0,
@@ -201,9 +201,9 @@ func newTexture(filePath string) (uint32, error) {
 
 	img, _, err := image.Decode(imgFile)
 	img = imaging.FlipV(img) // flip the image
+	img = imaging.FlipH(img) // flip the image
 	if nil != err {
 		return 0, fmt.Errorf("texture %q decode error: %v", filePath, err)
-
 	}
 
 	rgba := image.NewRGBA(img.Bounds())
@@ -218,8 +218,8 @@ func newTexture(filePath string) (uint32, error) {
 	gl.BindTexture(gl.TEXTURE_2D, texture)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
 	gl.TexImage2D(
 		gl.TEXTURE_2D,
 		0,
