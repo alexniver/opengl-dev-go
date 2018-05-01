@@ -8,13 +8,16 @@ import (
 	_ "image/png"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/disintegration/imaging"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/go-gl/mathgl/mgl32"
 )
 
 const windowWidth = 800
@@ -34,7 +37,7 @@ func main() {
 
 	window.SetKeyCallback(keyCallback)
 
-	shaderProgram := gl.CreateProgram()
+	program := gl.CreateProgram()
 
 	// read shader from files
 	verticsShaderHandle, err := readShaderFromFile("./shaders/vertices.vert", gl.VERTEX_SHADER)
@@ -47,9 +50,9 @@ func main() {
 	}
 
 	// gen program
-	gl.AttachShader(shaderProgram, verticsShaderHandle)
-	gl.AttachShader(shaderProgram, fragmentShaderHandle)
-	gl.LinkProgram(shaderProgram)
+	gl.AttachShader(program, verticsShaderHandle)
+	gl.AttachShader(program, fragmentShaderHandle)
+	gl.LinkProgram(program)
 
 	// vertices and indices
 	vertices := []float32{
@@ -94,21 +97,35 @@ func main() {
 	texture0, err := newTexture("texture/funny.jpg")
 	texture1, err := newTexture("texture/wall.jpeg")
 
-	gl.UseProgram(shaderProgram)
+	gl.UseProgram(program)
 
-	gl.Uniform1i(gl.GetUniformLocation(shaderProgram, gl.Str("texture0"+"\x00")), 0)
-	gl.Uniform1i(gl.GetUniformLocation(shaderProgram, gl.Str("texture1"+"\x00")), 1)
+	gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("texture0"+"\x00")), 0)
+	gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("texture1"+"\x00")), 1)
+
+	// use to transform rotate scale
+	tranUniformLoc := gl.GetUniformLocation(program, gl.Str("tran"+"\x00"))
 
 	if nil != err {
 		log.Fatal(err)
 	}
 
+	fps := float32(60)
+
+	timeTick := time.Tick(time.Duration(1.0/fps*1000) * time.Millisecond)
+
 	for !window.ShouldClose() {
 		gl.ClearColor(0.5, 0.5, 1, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
+		gl.UseProgram(program)
+
+		tran := mgl32.Ident4()
+		tran = tran.Mul4(mgl32.Translate3D(0.5, 0, 0))
+		tran = tran.Mul4(mgl32.Scale3D(0.1, 0.1, 1.0))
+		tran = tran.Mul4(mgl32.HomogRotate3D(float32(glfw.GetTime()), mgl32.Vec3{0, 0, 1}))
+		gl.UniformMatrix4fv(tranUniformLoc, 1, false, &tran[0])
 		// set rate
-		gl.Uniform1f(gl.GetUniformLocation(shaderProgram, gl.Str("rate"+"\x00")), rate)
+		gl.Uniform1f(gl.GetUniformLocation(program, gl.Str("rate"+"\x00")), rate)
 
 		gl.ActiveTexture(gl.TEXTURE0)
 		gl.BindTexture(gl.TEXTURE_2D, texture0)
@@ -116,11 +133,19 @@ func main() {
 		gl.ActiveTexture(gl.TEXTURE1)
 		gl.BindTexture(gl.TEXTURE_2D, texture1)
 
-		gl.UseProgram(shaderProgram)
+		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
+
+		tran = mgl32.Ident4()
+		tran = tran.Mul4(mgl32.Translate3D(-0.5, 0.5, 0))
+		scale := float32(math.Abs(math.Sin(glfw.GetTime())))
+		tran = tran.Mul4(mgl32.Scale3D(scale, scale, 1.0))
+		gl.UniformMatrix4fv(tranUniformLoc, 1, false, &tran[0])
+
 		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
 		glfw.PollEvents()
 		window.SwapBuffers()
+		<-timeTick
 	}
 
 }
