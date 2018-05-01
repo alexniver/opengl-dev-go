@@ -20,6 +20,8 @@ import (
 const windowWidth = 800
 const windowHeight = 600
 
+var rate = float32(0.5)
+
 func init() {
 	runtime.LockOSThread()
 }
@@ -53,15 +55,15 @@ func main() {
 	vertices := []float32{
 		-0.5, 0.5, 0.0, // pos
 		1.0, 0.0, 0.0, // color
-		0, 2, // uv
+		0, 1, // uv
 
 		0.5, 0.5, 0.0,
 		0.0, 1.0, 0.0,
-		2, 2,
+		1, 1,
 
 		0.5, -0.5, 0.0,
 		0.0, 0.0, 1.0,
-		2, 0,
+		1, 0,
 
 		-0.5, -0.5, 0.0,
 		0.5, 0.5, 0.0,
@@ -89,7 +91,14 @@ func main() {
 
 	makeEbo(indices)
 
-	texture, err := newTexture("texture/funny.jpg")
+	texture0, err := newTexture("texture/funny.jpg")
+	texture1, err := newTexture("texture/wall.jpeg")
+
+	gl.UseProgram(shaderProgram)
+
+	gl.Uniform1i(gl.GetUniformLocation(shaderProgram, gl.Str("texture0"+"\x00")), 0)
+	gl.Uniform1i(gl.GetUniformLocation(shaderProgram, gl.Str("texture1"+"\x00")), 1)
+
 	if nil != err {
 		log.Fatal(err)
 	}
@@ -98,7 +107,15 @@ func main() {
 		gl.ClearColor(0.5, 0.5, 1, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		gl.BindTexture(gl.TEXTURE_2D, texture)
+		// set rate
+		gl.Uniform1f(gl.GetUniformLocation(shaderProgram, gl.Str("rate"+"\x00")), rate)
+
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, texture0)
+
+		gl.ActiveTexture(gl.TEXTURE1)
+		gl.BindTexture(gl.TEXTURE_2D, texture1)
+
 		gl.UseProgram(shaderProgram)
 		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
@@ -201,7 +218,6 @@ func newTexture(filePath string) (uint32, error) {
 
 	img, _, err := image.Decode(imgFile)
 	img = imaging.FlipV(img) // flip the image
-	img = imaging.FlipH(img) // flip the image
 	if nil != err {
 		return 0, fmt.Errorf("texture %q decode error: %v", filePath, err)
 	}
@@ -243,5 +259,14 @@ func keyCallback(
 ) {
 	if key == glfw.KeyEscape && action == glfw.Press {
 		window.SetShouldClose(true)
+	}
+
+	if action == glfw.Press {
+		switch key {
+		case glfw.KeyUp:
+			rate = rate + 0.1
+		case glfw.KeyDown:
+			rate = rate - 0.1
+		}
 	}
 }
