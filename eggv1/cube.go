@@ -120,7 +120,7 @@ func main() {
 		previousTime = time
 
 		angle += elapsed
-		model = mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0})
+		//model = mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0})
 
 		// Render
 		gl.UseProgram(program)
