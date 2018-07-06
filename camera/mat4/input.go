@@ -1,16 +1,16 @@
 package main
 
 import (
-    "github.com/go-gl/mathgl/mgl32"
     "github.com/go-gl/glfw/v3.2/glfw"
+    "fmt"
+    "github.com/go-gl/mathgl/mgl64"
 )
 
-var keyPressedMap map[glfw.Key]bool // 键盘按下map
+var keyPressedMap = make(map[glfw.Key]bool) // 键盘按下map
 var cursorFirst = true              // 光标是否是第一次进入屏幕，默认是true
-var cursorPos mgl32.Vec2            // 光标位置
-var cursorPosLast mgl32.Vec2        // 光标上一帧最后的位置
-var cursorChange mgl32.Vec2         // 光标上一帧与这一帧的变化
-var bufferedCursorChange mgl32.Vec2 //
+var cursorPos mgl64.Vec2            // 光标位置
+var cursorPosLast mgl64.Vec2        // 光标上次监听事件的位置
+var bufferedCursorChange mgl64.Vec2 // 光标累计变化总量
 
 func keyCallback(window *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
     // timing for key events occurs differently from what the program loop requires
@@ -21,9 +21,10 @@ func keyCallback(window *glfw.Window, key glfw.Key, scancode int, action glfw.Ac
     case glfw.Release:
         keyPressedMap[key] = false
     }
+    fmt.Println("key pressed/released")
 }
 
-func mouseCallback(window *glfw.Window, xpos, ypos float32) {
+func cursorPosCallback(window *glfw.Window, xpos, ypos float64) {
 	if cursorFirst {
 		cursorPosLast[0] = xpos
 		cursorPosLast[1] = ypos
@@ -35,6 +36,11 @@ func mouseCallback(window *glfw.Window, xpos, ypos float32) {
 
 	cursorPosLast[0] = xpos
 	cursorPosLast[1] = ypos
+	fmt.Println("mouse moved")
+}
+
+func scrollCallback(w *glfw.Window, xoff float64, yoff float64) {
+
 }
 
 // IsKeyListPressed 返回是否按下了keyList中的所有键
